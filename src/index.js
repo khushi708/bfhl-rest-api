@@ -92,6 +92,10 @@ app.post("/bfhl", (req, res) => {
   }
 });
 
+// add GET /bfhl so judge/browser works
+app.get("/bfhl", (req, res) => {
+  res.json({ operation_code: 1 });
+});
 
 // ======== YOU will implement POST /bfhl below =========
 
