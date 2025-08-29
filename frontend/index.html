@@ -1,0 +1,139 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>BFHL – Array Classifier</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <style>
+    :root { --bg:#0b1020; --card:#10172a; --muted:#94a3b8; --accent:#4f46e5; --ok:#16a34a; --err:#ef4444; }
+    * { box-sizing: border-box; }
+    body { margin:0; font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial; background: var(--bg); color: #e2e8f0; }
+    .wrap { max-width: 900px; margin: 40px auto; padding: 16px; }
+    .card { background: var(--card); border: 1px solid #1f2937; border-radius: 16px; padding: 20px; box-shadow: 0 10px 30px rgba(0,0,0,.25); }
+    h1 { margin: 0 0 12px; font-size: 22px; }
+    .muted { color: var(--muted); }
+    label { font-size: 13px; color: var(--muted); display:block; margin-bottom:6px; }
+    input, textarea { width: 100%; background: #0b1220; border: 1px solid #24324a; color:#e2e8f0; padding: 10px 12px; border-radius: 10px; }
+    textarea { min-height: 110px; resize: vertical; }
+    .row { display: grid; gap: 12px; grid-template-columns: 1fr; }
+    @media (min-width: 720px) { .row { grid-template-columns: 2fr 1fr; } }
+    .btn { background: var(--accent); border: none; color: white; padding: 10px 14px; border-radius: 10px; cursor: pointer; font-weight: 600; }
+    .btn:hover { filter: brightness(1.1); }
+    .pill { display:inline-block; padding: 5px 10px; border-radius: 999px; background:#111827; border:1px solid #1f2937; margin: 4px 6px 0 0; font-size: 13px; }
+    .grid { display:grid; gap:16px; grid-template-columns: 1fr; }
+    @media (min-width: 720px){ .grid { grid-template-columns: 1fr 1fr; } }
+    pre { background: #0b1220; border:1px solid #24324a; padding:12px; border-radius: 10px; overflow:auto; }
+    .ok { color: #10b981; }
+    .err { color: var(--err); }
+    .small { font-size: 12px; }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="card">
+      <h1>BFHL – Array Classifier</h1>
+      <p class="muted small">POST <code>/bfhl</code> → returns even/odd numbers (as strings), uppercased alphabets, special chars, sum (string), and alternating-caps concat.</p>
+
+      <div class="row" style="margin-top:14px;">
+        <div>
+          <label for="data">Input array (JSON)</label>
+          <textarea id="data" placeholder='e.g. ["a","1","334","4","R","$"]'></textarea>
+          <div class="small muted" style="margin-top:6px;">
+            Tip: paste exactly a JSON array of strings (like the assignment examples).
+          </div>
+        </div>
+        <div>
+          <label for="url">API URL</label>
+          <input id="url" value="http://localhost:3000/bfhl" />
+          <div class="small muted" style="margin-top:6px;">
+            Change this to your deployed URL later (e.g., <code>https://your-app.onrender.com/bfhl</code>)
+          </div>
+        </div>
+      </div>
+
+      <div style="margin-top:14px; display:flex; gap:10px; align-items:center;">
+        <button class="btn" id="send">Process</button>
+        <span id="status" class="small muted"></span>
+      </div>
+    </div>
+
+    <div class="grid" style="margin-top:16px;">
+      <div class="card">
+        <h2 style="margin-top:0;font-size:18px;">Quick Output</h2>
+        <div id="quick"></div>
+      </div>
+      <div class="card">
+        <h2 style="margin-top:0;font-size:18px;">Raw JSON</h2>
+        <pre id="raw">{}</pre>
+      </div>
+    </div>
+
+    <div class="card" style="margin-top:16px;">
+      <h2 style="margin-top:0;font-size:18px;">Arrays</h2>
+      <div id="chips"></div>
+    </div>
+  </div>
+
+  <script>
+    const $ = (id) => document.getElementById(id);
+
+    function pillize(arr) {
+      if (!Array.isArray(arr) || arr.length === 0) return '<span class="muted small">[]</span>';
+      return arr.map(x => `<span class="pill">${String(x)}</span>`).join("");
+    }
+
+    function showResult(json) {
+      $("raw").textContent = JSON.stringify(json, null, 2);
+
+      const quick = `
+        <div class="small muted">status: ${json.is_success ? '<b class="ok">true</b>' : '<b class="err">false</b>'}</div>
+        <div class="small">user_id: <code>${json.user_id || "-"}</code></div>
+        <div class="small">email: <code>${json.email || "-"}</code></div>
+        <div class="small">roll_number: <code>${json.roll_number || "-"}</code></div>
+        <div class="small">sum: <code>${json.sum || "0"}</code></div>
+        <div class="small">concat_string: <code>${json.concat_string || ""}</code></div>
+      `;
+      $("quick").innerHTML = quick;
+
+      const chips = `
+        <div><b>Odd</b><div>${pillize(json.odd_numbers)}</div></div>
+        <div style="margin-top:8px;"><b>Even</b><div>${pillize(json.even_numbers)}</div></div>
+        <div style="margin-top:8px;"><b>Alphabets</b><div>${pillize(json.alphabets)}</div></div>
+        <div style="margin-top:8px;"><b>Special Characters</b><div>${pillize(json.special_characters)}</div></div>
+      `;
+      $("chips").innerHTML = chips;
+    }
+
+    $("send").addEventListener("click", async () => {
+      $("status").textContent = "Sending...";
+      try {
+        let arr;
+        try {
+          arr = JSON.parse($("data").value.trim());
+          if (!Array.isArray(arr)) throw new Error("Not an array");
+        } catch (e) {
+          $("status").textContent = "Please enter a valid JSON array";
+          return;
+        }
+
+        const url = $("url").value.trim();
+        const resp = await fetch(url, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ data: arr })
+        });
+
+        const json = await resp.json();
+        $("status").textContent = resp.ok ? "Success ✓" : "Error";
+        showResult(json);
+      } catch (err) {
+        $("status").textContent = "Request failed";
+        $("raw").textContent = JSON.stringify({ is_success:false, error: String(err) }, null, 2);
+      }
+    });
+
+    // preload example A
+    $("data").value = '["a","1","334","4","R","$"]';
+  </script>
+</body>
+</html>
